@@ -1,0 +1,97 @@
+#include "ros/ros.h"
+#include "geometry_msgs/Vector3.h"
+
+#include <sstream>
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+
+
+/**
+ * This tutorial demonstrates simple sending of messages over the ROS system.
+ */
+int main(int argc, char **argv)
+{
+  /**
+   * The ros::init() function needs to see argc and argv so that it can perform
+   * any ROS arguments and name remapping that were provided at the command line. For programmatic
+   * remappings you can use a different version of init() which takes remappings
+   * directly, but for most command-line programs, passing argc and argv is the easiest
+   * way to do it.  The third argument to init() is the name of the node.
+   *
+   * You must call one of the versions of ros::init() before using any other
+   * part of the ROS system.
+   */
+  ros::init(argc, argv, "jerry");
+
+  /**
+   * NodeHandle is the main access point to communications with the ROS system.
+   * The first NodeHandle constructed will fully initialize this node, and the last
+   * NodeHandle destructed will close down the node.
+   */
+  ros::NodeHandle n;
+
+  /**
+   * The advertise() function is how you tell ROS that you want to
+   * publish on a given topic name. This invokes a call to the ROS
+   * master node, which keeps a registry of who is publishing and who
+   * is subscribing. After this advertise() call is made, the master
+   * node will notify anyone who is trying to subscribe to this topic name,
+   * and they will in turn negotiate a peer-to-peer connection with this
+   * node.  advertise() returns a Publisher object which allows you to
+   * publish messages on that topic through a call to publish().  Once
+   * all copies of the returned Publisher object are destroyed, the topic
+   * will be automatically unadvertised.
+   *
+   * The second parameter to advertise() is the size of the message queue
+   * used for publishing messages.  If messages are published more quickly
+   * than we can send them, the number here specifies how many messages to
+   * buffer up before throwing some away.
+   */
+  ros::Publisher jerry_pub = n.advertise<geometry_msgs::Vector3>("delta_xyt", 1000);
+
+  ros::Rate loop_rate(50);
+
+  /**
+   * A count of how many messages we have sent. This is used to create
+   * a unique string for each message.
+   */
+
+  char buffer [3];
+  int mouse = open (argv[1], 0, O_RDONLY) ;
+
+  ros::Time lastMeasure = ros::Time::now();
+
+  while (ros::ok())  {
+	
+	ros::Time now;
+	geometry_msgs::Vector3 v3;
+   
+	if (read(mouse, buffer, 3) <= 0) {
+
+		printf ("Error reading mouse! ");
+		return -1;
+	}
+
+	v3.x = (float)buffer[1];
+	v3.y = (float)buffer[2];
+	
+	now = ros::Time::now();
+	v3.z = (now - lastMeasure).toSec();
+	lastMeasure = now;
+	
+	jerry_pub.publish(v3);
+	
+	ros::spinOnce();
+
+   	loop_rate.sleep();
+   
+  }
+
+
+  return 0;
+}
